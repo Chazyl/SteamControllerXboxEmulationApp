@@ -1,0 +1,34 @@
+<resources>
+    <!-- App Info -->
+    <string name="app_name">Steam Controller Xbox</string>
+    <string name="app_title">Steam Controller Emulation</string>
+
+    <!-- Button Labels -->
+    <string name="scan_devices">Scan for Controllers</string>
+    <string name="disconnect">Disconnect</string>
+
+    <!-- UI Labels -->
+    <string name="status_label">Status:</string>
+    <string name="device_list_title">Tap a device to connect:</string> <!-- Added for clarity -->
+
+    <!-- Status Messages -->
+    <string name="status_idle">Idle. Ready to scan.</string>
+    <string name="status_scanning">Scanning for BLE devices...</string>
+    <string name="status_connecting">Connecting...</string>
+    <string name="status_connected">Connected to: %1$s</string> <!-- %1$s is placeholder for device address -->
+    <string name="status_failed">Operation Failed. Check logs/permissions.</string>
+    <string name="status_no_root">Failed: ROOT ACCESS REQUIRED!</string>
+    <string name="status_bt_disabled">Failed: Bluetooth is disabled.</string>
+    <string name="status_permissions_denied">Failed: Permissions Denied.</string>
+
+    <!-- Notification Text (Can reuse status messages or have dedicated ones) -->
+    <string name="notification_text_initializing">Initializing service...</string>
+    <string name="notification_text_idle">Service idle.</string>
+    <string name="notification_text_scanning">Scanning for devices...</string>
+    <string name="notification_text_connecting">Connecting...</string>
+    <string name="notification_text_connected">Emulating controller: %1$s</string>
+    <string name="notification_text_disconnected">Disconnected.</string>
+    <string name="notification_text_failed">Service failed.</string>
+    <string name="notification_text_no_root">Service stopped: Root required.</string>
+
+</resources>

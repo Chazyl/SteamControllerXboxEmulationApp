@@ -1,0 +1,37 @@
+How to Build and Run:
+
+Prerequisites: Android Studio installed, NDK installed (via SDK Manager), a ROOTED Android device, Steam Controller.
+
+Clone/Setup: Create the project structure and paste the code into the respective files.
+
+Verify Placeholders: Crucially, find the correct BLE Service/Characteristic UUIDs and verify the byte offsets in SteamControllerParser.java.
+
+Build: Open the project in Android Studio. It should sync Gradle. Build the project (Build -> Make Project). This will compile Java and the native C code via CMake.
+
+Root: Ensure your connected Android device is properly rooted and USB Debugging is enabled.
+
+Run: Run the app on your rooted device (Run -> Run 'app').
+
+Grant Permissions: Grant Bluetooth (and Location before Android 12) permissions when prompted.
+
+Grant Root: When the app tries to initialize the UInputController, your root management app (e.g., Magisk) should prompt you to grant root permissions to this app. Grant it.
+
+Pair Controller: Make sure your Steam Controller is paired with the Android device via standard Bluetooth settings.
+
+Use App:
+
+Click "Scan".
+
+Wait for your Steam Controller's address to appear in the list.
+
+Click the controller's address to connect.
+
+The status should change to Connecting, then Connected.
+
+The app should now be receiving BLE data and writing it to /dev/uinput.
+
+Test: Open a gamepad testing app on Android or a game that supports standard Android controllers. The system should now see an "Xbox 360 Controller" (or similar name defined in uinput_wrapper.c) responding to your Steam Controller input.
+
+Disconnect: Use the disconnect button in the app.
+
+This provides a comprehensive structure and codebase for the Android app. Remember the critical points: root is required, and the BLE UUIDs/Parser logic MUST be verified for it to function correctly.
