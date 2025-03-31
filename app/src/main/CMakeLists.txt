@@ -1,7 +1,7 @@
 # Sets the minimum version of CMake required to build the native
 # library. You should either keep the default value or only pass a
 # value of 3.18.1 or higher.
-cmake_minimum_required(VERSION 3.18.1)
+cmake_minimum_required(VERSION 3.22.1)
 
 # Declares the project name.
 project("steamcontrollerxbox")
@@ -18,7 +18,12 @@ add_library( # Sets the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-             cpp/uinput_wrapper.c )
+             cpp/uinput_wrapper.c 
+             
+             # Enable C11 standard
+             PROPERTIES
+             C_STANDARD 11
+             C_STANDARD_REQUIRED ON)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by

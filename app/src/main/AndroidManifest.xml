@@ -6,9 +6,9 @@
     <!-- Bluetooth Permissions -->
     <!-- Request legacy Bluetooth permissions on older devices. -->
     <uses-permission android:name="android.permission.BLUETOOTH"
-                     android:maxSdkVersion="30" />
+                     android:maxSdkVersion="31" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
-                     android:maxSdkVersion="30" />
+                     android:maxSdkVersion="31" />
 
     <!-- Request Nearby Devices permission on Android 12+ -->
     <!-- Needed for BLE scanning. -->
@@ -19,7 +19,7 @@
 
     <!-- Location permission needed for BLE scan before Android 12 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
-                     android:maxSdkVersion="30"/>
+                     android:maxSdkVersion="31"/>
     <!-- Allow accessing location in the background if targeting < Android 10 for scans -->
     <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
 
@@ -40,7 +40,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SteamControllerXbox"
-        tools:targetApi="31">
+        tools:targetApi="33">
 
         <activity
             android:name=".ui.MainActivity"
@@ -64,5 +64,3 @@
     </application>
 
 </manifest>
-
-    

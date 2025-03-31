@@ -3,12 +3,12 @@ plugins {
 }
 
 android {
-    compileSdk 33 // Or latest stable
+    compileSdk 34 // Or latest stable
 
     defaultConfig {
         applicationId "com.example.steamcontrollerxbox"
         minSdk 23 // Requires BLE APIs, adjust as needed
-        targetSdk 33
+        targetSdk 34
         versionCode 1
         versionName "1.0"
 
@@ -51,10 +51,11 @@ android {
 
 dependencies {
 
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.8.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.recyclerview:recyclerview:1.3.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.core:core-ktx:1.12.0'
 
     // Optional: Root check library
     // implementation 'com.github.topjohnwu.libsu:core:5.0.4' // Example

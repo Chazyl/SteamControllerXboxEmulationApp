@@ -62,15 +62,26 @@ JNIEXPORT jint JNICALL Java_com_example_steamcontrollerxbox_nativeimpl_UInputCon
   (JNIEnv *env, jobject thisObject) {
 
     LOGI("nativeInit: Attempting to open /dev/uinput...");
-    // Try to open /dev/uinput
-    // NOTE: This requires ROOT privileges on Android
-    int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
-    if (fd < 0) {
-        LOGE("nativeInit: Error opening /dev/uinput: %s (errno %d). Check ROOT permissions.",
-             strerror(errno), errno);
-        return -errno; // Return negative errno
+    // Try to open uinput device (try multiple paths for compatibility)
+    const char *uinput_paths[] = {
+        "/dev/uinput",
+        "/dev/input/uinput",
+        "/dev/misc/uinput"
+    };
+    
+    int fd = -1;
+    for (int i = 0; i < sizeof(uinput_paths)/sizeof(uinput_paths[0]); i++) {
+        fd = open(uinput_paths[i], O_WRONLY | O_NONBLOCK);
+        if (fd >= 0) {
+            LOGI("nativeInit: Opened %s successfully (fd=%d)", uinput_paths[i], fd);
+            break;
+        }
+        LOGW("nativeInit: Failed to open %s: %s", uinput_paths[i], strerror(errno));
     }
-    LOGI("nativeInit: Opened /dev/uinput successfully (fd=%d).", fd);
+    if (fd < 0) {
+        LOGE("nativeInit: Failed to open any uinput device. Check ROOT permissions.");
+        return -ENODEV; // Return "No such device" error
+    }
 
     // --- Configure the virtual device (Simulating Xbox 360 Controller) ---
     // Use uinput_user_dev for broader kernel compatibility than uinput_setup
