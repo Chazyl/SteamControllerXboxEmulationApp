@@ -1,52 +1,36 @@
-      
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    package="com.example.steamcontrollerxbox">
 
-    <!-- Bluetooth Permissions -->
-    <!-- Request legacy Bluetooth permissions on older devices. -->
-    <uses-permission android:name="android.permission.BLUETOOTH"
-                     android:maxSdkVersion="31" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
-                     android:maxSdkVersion="31" />
-
-    <!-- Request Nearby Devices permission on Android 12+ -->
-    <!-- Needed for BLE scanning. -->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
-                     android:usesPermissionFlags="neverForLocation" />
-    <!-- Needed for connecting to paired devices or discovered devices. -->
+    <!-- Permissions Bluetooth -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
-    <!-- Location permission needed for BLE scan before Android 12 -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
-                     android:maxSdkVersion="31"/>
-    <!-- Allow accessing location in the background if targeting < Android 10 for scans -->
-    <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
+    <!-- Permission localisation requise pour le scan BLE -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Foreground Service Permission -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <!-- Optional: Request notification permission for Android 13+ for foreground service -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Permission notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Declare BLE hardware feature requirement -->
-    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
+    <!-- Fonctionnalité BLE requise -->
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="true" />
 
     <application
         android:allowBackup="true"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SteamControllerXbox"
-        tools:targetApi="33">
+        android:theme="@style/Theme.SteamControllerXbox">
 
         <activity
             android:name=".ui.MainActivity"
-            android:exported="true"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -57,10 +41,7 @@
             android:name=".service.EmulationService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice">
-            <!-- If targeting API 34+, add android:foregroundServiceType="remoteMessaging" if needed -->
-        </service>
+            android:foregroundServiceType="connectedDevice" />
 
     </application>
-
 </manifest>
