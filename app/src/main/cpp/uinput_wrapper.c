@@ -17,17 +17,17 @@
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 
 // --- JNI Function Declarations (matching UInputController.java) ---
-// Package: com.example.steamcontrollerxbox.nativeimpl
+// Package: com.example.steamcontrollertoxboxapp.nativeimpl
 // Class:   UInputController
 // Methods: nativeInit, nativeClose, nativeSendEvent
 
-JNIEXPORT jint JNICALL Java_com_example_steamcontrollerxbox_nativeimpl_UInputController_nativeInit
+JNIEXPORT jint JNICALL Java_com_example_steamcontrollertoxboxapp_nativeimpl_UInputController_nativeInit
   (JNIEnv *, jobject);
 
-JNIEXPORT void JNICALL Java_com_example_steamcontrollerxbox_nativeimpl_UInputController_nativeClose
+JNIEXPORT void JNICALL Java_com_example_steamcontrollertoxboxapp_nativeimpl_UInputController_nativeClose
   (JNIEnv *, jobject, jint);
 
-JNIEXPORT jboolean JNICALL Java_com_example_steamcontrollerxbox_nativeimpl_UInputController_nativeSendEvent
+JNIEXPORT jboolean JNICALL Java_com_example_steamcontrollertoxboxapp_nativeimpl_UInputController_nativeSendEvent
   (JNIEnv *, jobject, jint, jint, jint, jint);
 
 
@@ -58,7 +58,7 @@ static int send_event(int fd, int type, int code, int value) {
 }
 
 // --- JNI Implementation: nativeInit ---
-JNIEXPORT jint JNICALL Java_com_example_steamcontrollerxbox_nativeimpl_UInputController_nativeInit
+JNIEXPORT jint JNICALL Java_com_example_steamcontrollertoxboxapp_nativeimpl_UInputController_nativeInit
   (JNIEnv *env, jobject thisObject) {
 
     LOGI("nativeInit: Attempting to open /dev/uinput...");
@@ -185,7 +185,7 @@ JNIEXPORT jint JNICALL Java_com_example_steamcontrollerxbox_nativeimpl_UInputCon
 }
 
 // --- JNI Implementation: nativeClose ---
-JNIEXPORT void JNICALL Java_com_example_steamcontrollerxbox_nativeimpl_UInputController_nativeClose
+JNIEXPORT void JNICALL Java_com_example_steamcontrollertoxboxapp_nativeimpl_UInputController_nativeClose
   (JNIEnv *env, jobject thisObject, jint fd) {
 
     if (fd < 0) {
@@ -211,7 +211,7 @@ JNIEXPORT void JNICALL Java_com_example_steamcontrollerxbox_nativeimpl_UInputCon
 }
 
 // --- JNI Implementation: nativeSendEvent ---
-JNIEXPORT jboolean JNICALL Java_com_example_steamcontrollerxbox_nativeimpl_UInputController_nativeSendEvent
+JNIEXPORT jboolean JNICALL Java_com_example_steamcontrollertoxboxapp_nativeimpl_UInputController_nativeSendEvent
   (JNIEnv *env, jobject thisObject, jint fd, jint type, jint code, jint value) {
 
     if (send_event(fd, type, code, value) < 0) {
