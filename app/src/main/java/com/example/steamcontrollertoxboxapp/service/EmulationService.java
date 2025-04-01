@@ -188,13 +188,13 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
                 bleManager.scanForDevices(duration, new AndroidBleManager.ScanListener() {
                     @Override
                     public void onDeviceDiscovered(String address, String name) {
-                        callback.onDeviceFound(address, name);
+                        callback.onDeviceDiscovered(address, name);
                     }
 
                     @Override
                     public void onScanFinished() {
                         updateState(ServiceState.IDLE);
-                        callback.onScanComplete();
+                        callback.onScanFinished();
                     }
 
                     @Override

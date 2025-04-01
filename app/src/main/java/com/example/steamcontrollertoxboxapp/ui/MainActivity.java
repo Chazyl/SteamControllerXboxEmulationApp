@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean bound = false;
     private RecyclerView deviceList;
     private Button scanButton;
-    private List<String> discoveredDevices = new ArrayList<>();
+    private List<BleDevice> discoveredDevices = new ArrayList<>();
     private DeviceScanAdapter adapter;
 
     private final ServiceConnection connection = new ServiceConnection() {
@@ -105,15 +105,15 @@ public class MainActivity extends AppCompatActivity {
             
             emulationService.startScan(5000, new AndroidBleManager.ScanListener() {
                 @Override
-                public void onDeviceFound(String deviceAddress) {
+                public void onDeviceDiscovered(String deviceAddress, String name) {
                     runOnUiThread(() -> {
-                        discoveredDevices.add(deviceAddress);
+                        discoveredDevices.add(new BleDevice(deviceAddress, name));
                         adapter.notifyItemInserted(discoveredDevices.size() - 1);
                     });
                 }
 
                 @Override
-                public void onScanComplete() {
+                public void onScanFinished() {
                     runOnUiThread(() -> 
                         Toast.makeText(MainActivity.this, 
                             "Scan completed", 

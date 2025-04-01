@@ -6,20 +6,21 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-import com.example.steamcontrollertoxboxapp.R; // Your R file
+import com.example.steamcontrollertoxboxapp.R;
+import com.example.steamcontrollertoxboxapp.ble.BleDevice;
 import java.util.List;
 
 public class DeviceScanAdapter extends RecyclerView.Adapter<DeviceScanAdapter.DeviceViewHolder> {
 
-    private final List<String> deviceAddresses;
+    private final List<BleDevice> devices;
     private final OnDeviceClickListener listener;
 
     public interface OnDeviceClickListener {
         void onDeviceClick(String address);
     }
 
-    public DeviceScanAdapter(List<String> deviceAddresses, OnDeviceClickListener listener) {
-        this.deviceAddresses = deviceAddresses;
+    public DeviceScanAdapter(List<BleDevice> devices, OnDeviceClickListener listener) {
+        this.devices = devices;
         this.listener = listener;
     }
 
@@ -33,27 +34,29 @@ public class DeviceScanAdapter extends RecyclerView.Adapter<DeviceScanAdapter.De
 
     @Override
     public void onBindViewHolder(@NonNull DeviceViewHolder holder, int position) {
-        String address = deviceAddresses.get(position);
-        holder.bind(address, listener);
+        BleDevice device = devices.get(position);
+        holder.bind(device, listener);
     }
 
     @Override
     public int getItemCount() {
-        return deviceAddresses.size();
+        return devices.size();
     }
 
     static class DeviceViewHolder extends RecyclerView.ViewHolder {
-        TextView tvDeviceAddress; // Add TextView for name if available
+        TextView tvDeviceAddress;
 
         DeviceViewHolder(View itemView) {
             super(itemView);
             tvDeviceAddress = itemView.findViewById(R.id.tv_device_address);
         }
 
-        void bind(final String address, final OnDeviceClickListener listener) {
-            // TODO: Show device name if available from ScanResult, otherwise show address
-            tvDeviceAddress.setText(address);
-            itemView.setOnClickListener(v -> listener.onDeviceClick(address));
+        void bind(final BleDevice device, final OnDeviceClickListener listener) {
+            String displayText = device.getName() != null ? 
+                device.getName() + "\n" + device.getAddress() : 
+                device.getAddress();
+            tvDeviceAddress.setText(displayText);
+            itemView.setOnClickListener(v -> listener.onDeviceClick(device.getAddress()));
         }
     }
 }
