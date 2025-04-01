@@ -118,6 +118,15 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Service not ready", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // Check Bluetooth state
+        BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
+            Toast.makeText(this, "Bluetooth is disabled", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String[] permissions = {
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_CONNECT,

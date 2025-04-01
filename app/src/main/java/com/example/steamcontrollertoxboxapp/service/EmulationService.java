@@ -78,32 +78,28 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
                 bleManager = new AndroidBleManager(this, this);
                 virtualController = new UInputController(); // This checks root internally
                 controllerMapper = new ControllerMapper(virtualController);
-                 Log.i(TAG, "Core components initialized.");
-                 // Initial state check after controller init
-                 if (virtualController instanceof UInputController) {
+                Log.i(TAG, "Core components initialized.");
+                
+                // Initial state check after controller init
+                if (virtualController instanceof UInputController) {
                     // Attempt to connect to uinput immediately to verify root early
                     try {
                         ((UInputController) virtualController).initialize();
                         Log.i(TAG, "Virtual controller initialized successfully (root verified).");
                         // Don't keep it initialized yet, just verified access
-                         ((UInputController) virtualController).destroy();
+                        ((UInputController) virtualController).destroy();
+                        updateState(ServiceState.IDLE); // Only set to IDLE if initialization succeeded
                     } catch (SecurityException se) {
-                         Log.e(TAG, "Root required but not available!");
-                         updateState(ServiceState.NO_ROOT);
+                        Log.e(TAG, "Root required but not available!");
+                        updateState(ServiceState.NO_ROOT);
                     } catch (Exception e) {
-                         Log.e(TAG, "Failed to initially connect virtual controller", e);
-                         updateState(ServiceState.FAILED); // Indicate failure
+                        Log.e(TAG, "Failed to initially connect virtual controller", e);
+                        updateState(ServiceState.FAILED); // Indicate failure
                     }
-                 }
+                }
             } catch (Exception | UnsatisfiedLinkError e) {
                 Log.e(TAG, "Failed to initialize VirtualController (likely missing root or native lib issue)", e);
-                         updateState(ServiceState.FAILED); // Or NO_ROOT specifically if identifiable
-                 } else {
-                     updateState(ServiceState.IDLE); // Only set to IDLE if initialization succeeded
-                 }
-            } catch (Exception e) {
-                Log.e(TAG, "Initialization failed", e);
-                updateState(ServiceState.FAILED);
+                updateState(ServiceState.FAILED); // Or NO_ROOT specifically if identifiable
             }
         });
 
