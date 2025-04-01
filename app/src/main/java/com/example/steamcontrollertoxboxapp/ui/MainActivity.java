@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.view.View;
 import android.widget.Button;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -27,8 +28,10 @@ import com.example.steamcontrollertoxboxapp.service.EmulationService;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.example.steamcontrollertoxboxapp.ble.BleDevice;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "MainActivity";
     private EmulationService emulationService;
     private boolean bound = false;
     private RecyclerView deviceList;
@@ -42,13 +45,33 @@ public class MainActivity extends AppCompatActivity {
             EmulationService.LocalBinder binder = (EmulationService.LocalBinder) service;
             emulationService = binder.getService();
             bound = true;
+            emulationService.setStateListener(new EmulationService.StateListener() {
+                @Override
+                public void onStateChanged(EmulationService.ServiceState newState) {
+                    updateScanButtonState();
+                }
+            });
+            updateScanButtonState();
         }
 
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             bound = false;
+            if (emulationService != null) {
+                emulationService.setStateListener(null);
+            }
+            updateScanButtonState();
         }
     };
+
+    private void updateScanButtonState() {
+        runOnUiThread(() -> {
+            boolean enabled = bound && emulationService != null && 
+                emulationService.getCurrentState() != EmulationService.ServiceState.NO_ROOT &&
+                emulationService.getCurrentState() != EmulationService.ServiceState.FAILED;
+            scanButton.setEnabled(enabled);
+        });
+    }
 
     private final ActivityResultLauncher<String[]> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(),
@@ -89,13 +112,35 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkPermissionsAndScan() {
+        Log.d(TAG, "Scan button clicked");
+        if (!bound || emulationService == null) {
+            Log.w(TAG, "Cannot scan - service not bound");
+            Toast.makeText(this, "Service not ready", Toast.LENGTH_SHORT).show();
+            return;
+        }
         String[] permissions = {
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.ACCESS_FINE_LOCATION
         };
 
-        requestPermissionLauncher.launch(permissions);
+        // Check if all permissions are already granted
+        boolean allGranted = true;
+        for (String permission : permissions) {
+            if (ActivityCompat.checkSelfPermission(this, permission) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                allGranted = false;
+                break;
+            }
+        }
+
+        if (allGranted) {
+            Log.d(TAG, "All permissions already granted, starting scan");
+            startScan();
+        } else {
+            Log.d(TAG, "Requesting missing permissions: " + String.join(", ", permissions));
+            requestPermissionLauncher.launch(permissions);
+        }
     }
 
     private void startScan() {

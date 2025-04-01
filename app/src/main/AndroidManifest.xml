@@ -11,6 +11,8 @@
     <!-- Permission localisation requise pour le scan BLE -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission-sdk-23 android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission-sdk-23 android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- Permission notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -30,6 +32,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SteamControllerToXboxApp"
         tools:targetApi="31">
+        
+        <service
+            android:name=".service.EmulationService"
+            android:foregroundServiceType="connectedDevice|location"
+            android:exported="false" />
         <activity
             android:name=".ui.MainActivity"
             android:exported="true">

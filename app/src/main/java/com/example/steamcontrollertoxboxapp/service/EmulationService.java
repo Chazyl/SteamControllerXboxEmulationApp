@@ -50,8 +50,8 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
     private volatile boolean isProcessingRunning = false;
     private Thread processingThread;
 
-    public enum ServiceState { IDLE, SCANNING, CONNECTING, CONNECTED, FAILED, NO_ROOT }
-    private final AtomicReference<ServiceState> currentState = new AtomicReference<>(ServiceState.IDLE);
+    public enum ServiceState { INITIALIZING, IDLE, SCANNING, CONNECTING, CONNECTED, FAILED, NO_ROOT }
+    private final AtomicReference<ServiceState> currentState = new AtomicReference<>(ServiceState.INITIALIZING);
     private String connectedDeviceAddress = null;
 
     // --- Binder for Activity Communication ---
@@ -74,8 +74,8 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
 
         // Initialize components on the background thread
         serviceHandler.post(() -> {
-            bleManager = new AndroidBleManager(this, this);
             try {
+                bleManager = new AndroidBleManager(this, this);
                 virtualController = new UInputController(); // This checks root internally
                 controllerMapper = new ControllerMapper(virtualController);
                  Log.i(TAG, "Core components initialized.");
@@ -97,8 +97,13 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
                  }
             } catch (Exception | UnsatisfiedLinkError e) {
                 Log.e(TAG, "Failed to initialize VirtualController (likely missing root or native lib issue)", e);
-                 updateState(ServiceState.FAILED); // Or NO_ROOT specifically if identifiable
-                 // Stop the service? Or let UI handle the FAILED state.
+                         updateState(ServiceState.FAILED); // Or NO_ROOT specifically if identifiable
+                 } else {
+                     updateState(ServiceState.IDLE); // Only set to IDLE if initialization succeeded
+                 }
+            } catch (Exception e) {
+                Log.e(TAG, "Initialization failed", e);
+                updateState(ServiceState.FAILED);
             }
         });
 
@@ -356,10 +361,22 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
          processingThread.start();
      }
 
+    public interface StateListener {
+        void onStateChanged(ServiceState newState);
+    }
+    
+    private StateListener stateListener;
+    
+    public void setStateListener(StateListener listener) {
+        this.stateListener = listener;
+    }
+
     private void updateState(ServiceState newState) {
          ServiceState oldState = currentState.getAndSet(newState);
          Log.i(TAG, "Service state changed: " + oldState + " -> " + newState);
-         // TODO: Broadcast state change to Activity if needed, or Activity can poll getState()
+         if (stateListener != null) {
+             stateListener.onStateChanged(newState);
+         }
     }
 
     // --- Notification Handling ---

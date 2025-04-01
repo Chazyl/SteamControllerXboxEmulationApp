@@ -45,28 +45,24 @@ public class AndroidBleManager implements BleDeviceManager {
     public static final int ERROR_LOCATION_DISABLED = 7;
     public static final int ERROR_UNKNOWN = 8;
     // Interface implementation
-    @Override
     public void onDeviceConnected(String deviceAddress) {
         if (connectionStateCallback != null) {
             connectionStateCallback.onConnectionStateChanged(BluetoothProfile.STATE_CONNECTED, deviceAddress);
         }
     }
 
-    @Override
     public void onDeviceDisconnected(String deviceAddress) {
         if (connectionStateCallback != null) {
             connectionStateCallback.onConnectionStateChanged(BluetoothProfile.STATE_DISCONNECTED, deviceAddress);
         }
     }
 
-    @Override
     public void onDataReceived(String deviceAddress, byte[] data) {
         if (dataConsumer != null) {
             dataConsumer.accept(data);
         }
     }
 
-    @Override
     public void onError(String deviceAddress, String errorMessage) {
         Log.e(TAG, "BLE Error [" + deviceAddress + "]: " + errorMessage);
         if (connectionStateCallback != null) {
@@ -119,7 +115,6 @@ public class AndroidBleManager implements BleDeviceManager {
         }
     }
 
-    @Override
     public void scanForDevices() {
         scanForDevices(10000, new ScanListener() {
             public void onDeviceDiscovered(String address, String name) {}
@@ -188,7 +183,7 @@ public class AndroidBleManager implements BleDeviceManager {
             }
         };
 
-        // Steam Controller specific scan filters
+        // Try with Steam Controller service filter first
         List<ScanFilter> filters = new ArrayList<>();
         filters.add(new ScanFilter.Builder()
             .setServiceUuid(new ParcelUuid(SERVICE_UUID))
@@ -198,13 +193,33 @@ public class AndroidBleManager implements BleDeviceManager {
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build();
 
-        Log.i(TAG, "Starting BLE scan...");
+        Log.i(TAG, "Starting BLE scan with Steam Controller service filter");
         isScanning = true;
-        bleScanner.startScan(filters, settings, leScanCallback);
+        try {
+            bleScanner.startScan(filters, settings, leScanCallback);
+            Log.d(TAG, "BLE scan started successfully with service filter");
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to scan with service filter, trying without filter", e);
+            // Try again without service filter
+            try {
+                bleScanner.startScan(null, settings, leScanCallback); 
+                Log.d(TAG, "BLE scan started successfully without service filter");
+            } catch (SecurityException se) {
+                Log.e(TAG, "SecurityException when starting scan", se);
+                callback.onScanFailed(ERROR_PERMISSION_DENIED);
+                return;
+            } catch (Exception ex) {
+                Log.e(TAG, "Exception when starting scan without filter", ex);
+                callback.onScanFailed(ERROR_UNKNOWN);
+                return;
+            }
+        }
 
         handler.postDelayed(() -> {
+            Log.d(TAG, "Scan duration elapsed, stopping scan");
             stopScan();
             callback.onScanFinished();
+            Log.d(TAG, "Scan finished callback completed");
         }, scanDurationMillis);
     }
 
@@ -224,7 +239,6 @@ public class AndroidBleManager implements BleDeviceManager {
         }
     }
 
-    @Override
     public void connect(String deviceAddress, Consumer<byte[]> dataConsumer) throws SecurityException, IllegalArgumentException {
         if (!hasConnectPermission()) {
             Log.e(TAG, "Missing Bluetooth Connect Permission!");
@@ -264,12 +278,10 @@ public class AndroidBleManager implements BleDeviceManager {
         // Note: autoConnect=false is generally preferred for active connections
     }
 
-    @Override
     public boolean isConnected() {
         return isConnected;
     }
 
-    @Override
     public void writeCharacteristic(UUID serviceUuid, UUID characteristicUuid, byte[] data) throws Exception {
         if (bluetoothGatt == null || !isConnected) {
             throw new IllegalStateException("Not connected to a device.");
@@ -303,7 +315,6 @@ public class AndroidBleManager implements BleDeviceManager {
         Log.d(TAG, "Initiated write to characteristic: " + characteristicUuid);
     }
 
-    @Override
     public void close() {
         try {
             destroy();
@@ -312,7 +323,6 @@ public class AndroidBleManager implements BleDeviceManager {
         }
     }
 
-    @Override
     public void disconnect() {
         if (bluetoothGatt != null && isConnected) {
             try {
@@ -325,7 +335,6 @@ public class AndroidBleManager implements BleDeviceManager {
         }
     }
 
-    @Override
     public void destroy() throws Exception {
         if (bluetoothGatt != null) {
             if (hasConnectPermission()) {
