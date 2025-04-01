@@ -17,11 +17,9 @@ public interface BleDeviceManager {
 
     void connect(String deviceAddress, Consumer<byte[]> dataConsumer) throws SecurityException, IllegalArgumentException;
 
-    void disconnect();
-
     boolean isConnected();
 
     void writeCharacteristic(UUID serviceUuid, UUID characteristicUuid, byte[] data) throws Exception;
 
-    void close() throws Exception;
+    void destroy() throws Exception;
 }

@@ -46,67 +46,33 @@ public class ControllerMapper {
      * @throws IOException If the underlying virtual controller write fails.
      * @throws IllegalStateException If the virtual controller is not connected.
      */
-    public void processSteamEvent(SteamControllerDefs.UpdateEvent steamEvent) throws IOException, IllegalStateException {
-        if (steamEvent == null) {
-             // Log.w(TAG, "Received null SteamEvent"); // Can be noisy
-             return;
+    public void processSteamEvent(SteamControllerParser.XboxOutput xboxOutput) throws IllegalStateException {
+        if (xboxOutput == null) {
+            return;
         }
 
-        // --- Button Mapping ---
-        int buttons = steamEvent.buttons;
-        updateButtonState(VirtualController.XboxButton.A, (buttons & SteamControllerDefs.Button.A.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.B, (buttons & SteamControllerDefs.Button.B.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.X, (buttons & SteamControllerDefs.Button.X.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.Y, (buttons & SteamControllerDefs.Button.Y.getValue()) != 0);
+        // Update button states
+        updateButtonState(VirtualController.XboxButton.A, xboxOutput.buttonA);
+        updateButtonState(VirtualController.XboxButton.B, xboxOutput.buttonB);
+        updateButtonState(VirtualController.XboxButton.X, xboxOutput.buttonX);
+        updateButtonState(VirtualController.XboxButton.Y, xboxOutput.buttonY);
+        updateButtonState(VirtualController.XboxButton.LB, xboxOutput.buttonLB);
+        updateButtonState(VirtualController.XboxButton.RB, xboxOutput.buttonRB);
+        updateButtonState(VirtualController.XboxButton.BACK, xboxOutput.buttonBack);
+        updateButtonState(VirtualController.XboxButton.START, xboxOutput.buttonStart);
+        updateButtonState(VirtualController.XboxButton.LSTICK, xboxOutput.buttonLStick);
+        updateButtonState(VirtualController.XboxButton.RSTICK, xboxOutput.buttonRStick);
 
-        updateButtonState(VirtualController.XboxButton.LB, (buttons & SteamControllerDefs.Button.LS.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.RB, (buttons & SteamControllerDefs.Button.RS.getValue()) != 0);
+        // Update axis states
+        updateAxisState(VirtualController.XboxAxis.LEFT_X, (short)(xboxOutput.leftStickX * 32767));
+        updateAxisState(VirtualController.XboxAxis.LEFT_Y, (short)(-xboxOutput.leftStickY * 32767)); // Invert Y
+        updateAxisState(VirtualController.XboxAxis.RIGHT_X, (short)(xboxOutput.rightStickX * 32767));
+        updateAxisState(VirtualController.XboxAxis.RIGHT_Y, (short)(-xboxOutput.rightStickY * 32767)); // Invert Y
+        updateAxisState(VirtualController.XboxAxis.LT, (short)(xboxOutput.leftTrigger * 255));
+        updateAxisState(VirtualController.XboxAxis.RT, (short)(xboxOutput.rightTrigger * 255));
 
-        updateButtonState(VirtualController.XboxButton.BACK, (buttons & SteamControllerDefs.Button.PREV.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.START, (buttons & SteamControllerDefs.Button.NEXT.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.GUIDE, (buttons & SteamControllerDefs.Button.HOME.getValue()) != 0);
-
-        // DPad mapping (from Left Pad Quarters)
-        updateButtonState(VirtualController.XboxButton.DPAD_UP, (buttons & SteamControllerDefs.Button.DPAD_UP.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.DPAD_DOWN, (buttons & SteamControllerDefs.Button.DPAD_DOWN.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.DPAD_LEFT, (buttons & SteamControllerDefs.Button.DPAD_LEFT.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.DPAD_RIGHT, (buttons & SteamControllerDefs.Button.DPAD_RIGHT.getValue()) != 0);
-
-        // Stick/Pad Click Mapping (Needs refinement based on FLAG_PAD_STICK)
-        // Simple example: Map STICK press to Left Stick click, RPAD press to Right Stick click
-        // boolean isLeftPadAsStick = (buttons & SteamControllerDefs.Button.FLAG_PAD_STICK.getValue()) != 0;
-        updateButtonState(VirtualController.XboxButton.LS, (buttons & SteamControllerDefs.Button.STICK.getValue()) != 0);
-        updateButtonState(VirtualController.XboxButton.RS, (buttons & SteamControllerDefs.Button.RPAD.getValue()) != 0);
-
-        // Optional: Map Grip buttons (LG, RG) - e.g., map LG to LS click if not already mapped?
-        // if (!currentButtonStates.get(VirtualController.XboxButton.LS)) { // Only map if LS isn't pressed by STICK
-        //    updateButtonState(VirtualController.XboxButton.LS, (buttons & SteamControllerDefs.Button.LG.getValue()) != 0);
-        // }
-        // updateButtonState(VirtualController.XboxButton.RS, (buttons & SteamControllerDefs.Button.RG.getValue()) != 0); // Or map RG to RS?
-
-
-        // --- Axis Mapping ---
-        // Left Stick/Pad
-        updateAxisState(VirtualController.XboxAxis.LEFT_X, steamEvent.leftAxis.x);
-        updateAxisState(VirtualController.XboxAxis.LEFT_Y, invertAxis(steamEvent.leftAxis.y)); // Invert Y for standard XInput
-
-        // Right Stick/Pad
-        updateAxisState(VirtualController.XboxAxis.RIGHT_X, steamEvent.rightAxis.x);
-        updateAxisState(VirtualController.XboxAxis.RIGHT_Y, invertAxis(steamEvent.rightAxis.y)); // Invert Y for standard XInput
-
-        // --- Trigger Mapping ---
-        // Steam triggers are 0-255, map directly to Xbox trigger axes 0-255
-        updateAxisState(VirtualController.XboxAxis.LT, unsignedByteToShort(steamEvent.leftTrigger));
-        updateAxisState(VirtualController.XboxAxis.RT, unsignedByteToShort(steamEvent.rightTrigger));
-
-        // --- Send Update ---
-        // Optional: Check if state actually changed before sending
-        // if (stateHasChanged()) {
-            virtualController.updateState(currentButtonStates, currentAxisStates);
-            // Update previous state if tracking changes
-            // previousButtonStates.putAll(currentButtonStates);
-            // previousAxisStates.putAll(currentAxisStates);
-        // }
+        // Update the virtual controller
+        virtualController.update(xboxOutput);
     }
 
     // Helper to update button state (no change tracking here)

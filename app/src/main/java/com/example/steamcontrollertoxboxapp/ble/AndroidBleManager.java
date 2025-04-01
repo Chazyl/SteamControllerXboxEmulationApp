@@ -15,6 +15,7 @@ import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
+import android.os.ParcelUuid;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -34,6 +35,11 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 public class AndroidBleManager implements BleDeviceManager {
+    // Error codes
+    public static final int ERROR_INVALID_STATE = 1;
+    public static final int ERROR_SCAN_FAILED = 2;
+    public static final int ERROR_CONNECTION_FAILED = 3;
+    public static final int ERROR_DISCONNECTED = 4;
     // Error codes
     public static final int ERROR_PERMISSION_DENIED = 1;
     public static final int ERROR_BLUETOOTH_DISABLED = 2;
@@ -114,16 +120,20 @@ public class AndroidBleManager implements BleDeviceManager {
 
     @Override
     public void scanForDevices() {
-        scanForDevices(10000); // Default 10 second scan
+        scanForDevices(10000, new ScanListener() {
+            public void onDeviceDiscovered(String address, String name) {}
+            public void onScanFinished() {}
+            public void onScanFailed(int errorCode) {}
+        });
     }
 
-    public interface ScanCallback {
+    public interface ScanListener {
         void onDeviceDiscovered(String address, String name);
         void onScanFinished();
         void onScanFailed(int errorCode);
     }
 
-    public void scanForDevices(long scanDurationMillis, ScanCallback callback) throws SecurityException {
+    public void scanForDevices(long scanDurationMillis, ScanListener callback) throws SecurityException {
         if (!hasScanPermission()) {
             Log.e(TAG, "Missing Bluetooth Scan Permission!");
             callback.onScanFailed(ERROR_PERMISSION_DENIED);
@@ -137,7 +147,6 @@ public class AndroidBleManager implements BleDeviceManager {
 
         discoveredDevices.clear(); // Clear previous results
         leScanCallback = new ScanCallback() {
-            @Override
             public void onScanResult(int callbackType, ScanResult result) {
                 super.onScanResult(callbackType, result);
                 BluetoothDevice device = result.getDevice();
@@ -148,6 +157,10 @@ public class AndroidBleManager implements BleDeviceManager {
                     discoveredDevices.put(deviceAddress, device);
                     callback.onDeviceDiscovered(deviceAddress, deviceName);
                 }
+            }
+
+            public void onScanFinished() {
+                callback.onScanFinished();
             }
 
             @Override
@@ -174,7 +187,12 @@ public class AndroidBleManager implements BleDeviceManager {
             }
         };
 
+        // Steam Controller specific scan filters
         List<ScanFilter> filters = new ArrayList<>();
+        filters.add(new ScanFilter.Builder()
+            .setServiceUuid(new ParcelUuid(SERVICE_UUID))
+            .build());
+            
         ScanSettings settings = new ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build();
@@ -246,21 +264,6 @@ public class AndroidBleManager implements BleDeviceManager {
     }
 
     @Override
-    public void disconnect() {
-        if (bluetoothGatt == null) {
-            return;
-        }
-        if (!hasConnectPermission()) {
-            Log.w(TAG, "Cannot disconnect without Connect permission.");
-            // Don't throw, just log.
-            return;
-        }
-        Log.i(TAG, "Disconnecting from device: " + bluetoothGatt.getDevice().getAddress());
-        bluetoothGatt.disconnect();
-        // Close will be called in the onConnectionStateChange callback when state is STATE_DISCONNECTED
-    }
-
-    @Override
     public boolean isConnected() {
         return isConnected;
     }
@@ -300,7 +303,7 @@ public class AndroidBleManager implements BleDeviceManager {
     }
 
     @Override
-    public void close() throws Exception { // Changed from disconnect to close to match interface
+    public void destroy() throws Exception {
         if (bluetoothGatt != null) {
             if (hasConnectPermission()) {
                 Log.i(TAG, "Closing GATT connection for " + bluetoothGatt.getDevice().getAddress());
@@ -424,112 +427,93 @@ public class AndroidBleManager implements BleDeviceManager {
                 }
 
                 // Enable notifications for the input characteristic
-                boolean notificationSet = gatt.setCharacteristicNotification(inputCharacteristic, true);
-                Log.d(TAG, "setCharacteristicNotification enabled: " + notificationSet);
-
-                // Write to the CCCD to enable notifications on the peripheral
-                BluetoothGattDescriptor descriptor = inputCharacteristic.getDescriptor(CCCD_UUID);
-                if (descriptor != null) {
-                    descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                    boolean writeSuccess = gatt.writeDescriptor(descriptor);
-                    Log.d(TAG, "Writing ENABLE_NOTIFICATION_VALUE to CCCD: " + writeSuccess);
-                    if (!writeSuccess) {
-                        Log.e(TAG, "Failed to write CCCD descriptor!");
+                boolean notificationSet = false;
+                if ((inputCharacteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0) {
+                    Log.i(TAG, "Setting up notifications for input characteristic");
+                    if (bluetoothGatt.setCharacteristicNotification(inputCharacteristic, true)) {
+                        BluetoothGattDescriptor descriptor = inputCharacteristic.getDescriptor(CCCD_UUID);
+                        if (descriptor != null) {
+                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            if (bluetoothGatt.writeDescriptor(descriptor)) {
+                                notificationSet = true;
+                                Log.i(TAG, "Successfully enabled notifications");
+                            } else {
+                                Log.e(TAG, "Failed to write descriptor for notifications");
+                            }
+                        } else {
+                            Log.e(TAG, "CCCD descriptor not found");
+                        }
                     } else {
-                        Log.i(TAG, "Successfully subscribed to input notifications.");
-                        // TODO: Notify UI/Service ready state
+                        Log.e(TAG, "Failed to set characteristic notification");
                     }
                 } else {
-                    Log.e(TAG, "CCCD Descriptor not found for input characteristic!");
+                    Log.e(TAG, "Characteristic does not support notifications");
                 }
 
+                if (!notificationSet) {
+                    Log.e(TAG, "Failed to setup notifications - input data won't be received");
+                    if (connectionStateCallback != null) {
+                        connectionStateCallback.onConnectionFailed(gatt.getDevice().getAddress(), -1);
+                    }
+                }
             } else {
-                Log.w(TAG, "onServicesDiscovered received error status: " + status);
+                Log.e(TAG, "Service discovery failed: " + status);
+                if (connectionStateCallback != null) {
+                    connectionStateCallback.onConnectionFailed(gatt.getDevice().getAddress(), status);
+                }
             }
         }
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            // This is where input data arrives
-            if (INPUT_CHAR_UUID.equals(characteristic.getUuid())) {
+            if (!hasConnectPermission()) { Log.e(TAG, "GATT callback received without Connect permission!"); return; }
+            
+            if (characteristic.getUuid().equals(INPUT_CHAR_UUID)) {
                 byte[] data = characteristic.getValue();
-                // Log.v(TAG, "Received data: " + bytesToHex(data)); // Can be very verbose
-                if (dataConsumer != null) {
-                    // Pass data to the consumer (which likely queues it for processing)
-                    dataConsumer.accept(data);
+                if (data != null && data.length > 0) {
+                    if (dataConsumer != null) {
+                        dataConsumer.accept(data);
+                    }
                 }
             }
         }
 
         @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            Log.d(TAG, "onCharacteristicWrite: " + characteristic.getUuid() + " Status: " + status);
-            // Handle write confirmation/failure if needed
-        }
-
-        @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-            if (CCCD_UUID.equals(descriptor.getUuid())) {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    Log.i(TAG, "CCCD descriptor write successful for " + descriptor.getCharacteristic().getUuid());
-                } else {
-                    Log.e(TAG, "CCCD descriptor write failed: " + status);
-                }
+            if (!hasConnectPermission()) { Log.e(TAG, "GATT callback received without Connect permission!"); return; }
+            
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d(TAG, "Descriptor write successful: " + descriptor.getUuid());
             } else {
-                Log.d(TAG, "onDescriptorWrite: " + descriptor.getUuid() + " Status: " + status);
+                Log.e(TAG, "Descriptor write failed: " + status);
             }
         }
 
         @Override
         public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
             if (!hasConnectPermission()) { Log.e(TAG, "GATT callback received without Connect permission!"); return; }
-
+            
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.i(TAG, "MTU changed to: " + mtu);
-                // Now that MTU is negotiated, discover services
-                Log.i(TAG, "Attempting to start service discovery after MTU change: " + gatt.discoverServices());
+                // Now that MTU is set, discover services if we haven't already
+                if (!gatt.discoverServices()) {
+                    Log.e(TAG, "Failed to start service discovery after MTU change");
+                }
             } else {
-                Log.w(TAG, "MTU change failed, status: " + status + ". Proceeding with default MTU.");
-                // Proceed with service discovery even if MTU change failed
-                Log.i(TAG, "Attempting to start service discovery after failed MTU change: " + gatt.discoverServices());
+                Log.w(TAG, "MTU change failed: " + status);
+                // Still attempt service discovery even if MTU change failed
+                if (!gatt.discoverServices()) {
+                    Log.e(TAG, "Failed to start service discovery after MTU change failure");
+                }
             }
-            // TODO: Notify UI/Service about MTU negotiation result?
         }
-
-        // Other callback overrides (onCharacteristicRead, etc.) can be added if needed
     };
 
-    // --- Permission Checks ---
     private boolean hasScanPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            return ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED;
-        } else {
-            // Before Android 12, location permission was needed for scanning
-            return ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-        }
+        return ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED;
     }
 
     private boolean hasConnectPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            return ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
-        } else {
-            // Before Android 12, admin permission was sufficient for connection
-            return ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED;
-        }
-    }
-
-    // Helper to convert bytes to hex string for logging
-    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
-    public static String bytesToHex(byte[] bytes) {
-        if (bytes == null) return "null";
-        char[] hexChars = new char[bytes.length * 2];
-        for (int j = 0; j < bytes.length; j++) {
-            int v = bytes[j] & 0xFF;
-            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
-            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
-        }
-        return new String(hexChars);
+        return ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
     }
 }

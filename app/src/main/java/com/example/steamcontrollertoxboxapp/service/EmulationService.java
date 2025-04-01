@@ -83,10 +83,10 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
                  if (virtualController instanceof UInputController) {
                     // Attempt to connect to uinput immediately to verify root early
                     try {
-                        ((UInputController) virtualController).connect();
-                        Log.i(TAG, "Virtual controller connected successfully (root verified).");
-                        // Don't keep it connected yet, just verified access
-                         ((UInputController) virtualController).disconnect();
+                        ((UInputController) virtualController).initialize();
+                        Log.i(TAG, "Virtual controller initialized successfully (root verified).");
+                        // Don't keep it initialized yet, just verified access
+                         ((UInputController) virtualController).destroy();
                     } catch (SecurityException se) {
                          Log.e(TAG, "Root required but not available!");
                          updateState(ServiceState.NO_ROOT);
@@ -146,7 +146,7 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
             }
             if (virtualController != null) {
                 try {
-                    virtualController.close();
+                    virtualController.destroy();
                 } catch (Exception e) {
                     Log.e(TAG, "Error closing Virtual Controller", e);
                 }
@@ -259,8 +259,8 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
              Log.i(TAG, "Initiating connection to " + address);
              try {
                  // Connect virtual controller first (requires root)
-                 virtualController.connect();
-                 Log.i(TAG, "Virtual controller connected for emulation.");
+                 virtualController.initialize();
+                 Log.i(TAG, "Virtual controller initialized for emulation.");
 
                  // Connect BLE device
                  bleManager.connect(address, bleDataQueue::offer); // Offer data to the queue
@@ -313,7 +313,7 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
          }
          if (virtualController != null) {
               try {
-                  virtualController.disconnect(); // Disconnect virtual device
+                  virtualController.destroy(); // Destroy virtual device
               } catch (Exception e) {
                    Log.e(TAG, "Error during virtual controller disconnect", e);
               }
@@ -334,23 +334,17 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
                      byte[] rawData = bleDataQueue.take(); // Blocks until data is available
                      if (!isProcessingRunning) break; // Check again after waking up
 
-                     Object parsedEvent = SteamControllerParser.parse(rawData);
-
-                     if (parsedEvent instanceof SteamControllerDefs.UpdateEvent) {
-                         if (controllerMapper != null && virtualController != null) {
-                             try {
-                                 controllerMapper.processSteamEvent((SteamControllerDefs.UpdateEvent) parsedEvent);
-                             } catch (IllegalStateException ise) {
-                                 // Virtual controller likely disconnected
-                                 Log.w(TAG, "Failed to update state, controller likely not connected: " + ise.getMessage());
-                                 // Consider attempting to reconnect or stopping?
-                             } catch (Exception e) {
-                                  Log.e(TAG, "Error processing update event", e);
-                             }
+                     SteamControllerParser.XboxOutput xboxOutput = SteamControllerParser.parseInput(rawData);
+                     
+                     if (xboxOutput != null && virtualController != null) {
+                         try {
+                             virtualController.update(xboxOutput);
+                         } catch (IllegalStateException ise) {
+                             Log.w(TAG, "Failed to update virtual controller: " + ise.getMessage());
+                             disconnectDeviceInternal();
+                         } catch (Exception e) {
+                             Log.e(TAG, "Error updating virtual controller", e);
                          }
-                     } else if (parsedEvent instanceof SteamControllerDefs.BatteryEvent) {
-                          Log.i(TAG, "Controller Battery: " + ((SteamControllerDefs.BatteryEvent) parsedEvent).voltage + "mV");
-                         // TODO: Optionally update notification or broadcast status
                      }
                      // Ignore ConnectionEvents here, handled by BLE manager callbacks setting service state
 
