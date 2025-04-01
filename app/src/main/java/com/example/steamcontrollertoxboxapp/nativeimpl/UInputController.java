@@ -62,7 +62,7 @@ public class UInputController implements VirtualController {
     }
 
     @Override
-    public void update(SteamControllerParser.XboxOutput state) throws IOException {
+    public void update(SteamControllerParser.XboxOutput state) {
         if (uinputFd < 0) {
             throw new IllegalStateException("Not initialized");
         }
@@ -90,7 +90,7 @@ public class UInputController implements VirtualController {
         nativeSendEvent(uinputFd, UInputConstants.EV_ABS, UInputConstants.ABS_RZ, (int)(state.rightTrigger * 255));
 
         if (!nativeSendEvent(uinputFd, UInputConstants.EV_SYN, UInputConstants.SYN_REPORT, 0)) {
-            throw new IOException("Failed to send SYN_REPORT");
+            Log.e(TAG, "Failed to send SYN_REPORT");
         }
     }
 

@@ -173,13 +173,7 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
          return connectedDeviceAddress;
      }
 
-    public interface ScanCallback {
-        void onDeviceFound(String deviceAddress, String deviceName);
-        void onScanComplete();
-        void onScanFailed(int errorCode);
-    }
-
-    public void startScan(long duration, ScanCallback callback) {
+    public void startScan(long duration, AndroidBleManager.ScanListener callback) {
         if (bleManager == null || currentState.get() == ServiceState.NO_ROOT || currentState.get() == ServiceState.FAILED) {
             Log.w(TAG, "Cannot scan, BLE manager not ready or in error state.");
             callback.onScanFailed(AndroidBleManager.ERROR_INVALID_STATE);
@@ -191,7 +185,7 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
         
         serviceHandler.post(() -> {
             try {
-                bleManager.scanForDevices(duration, new AndroidBleManager.ScanCallback() {
+                bleManager.scanForDevices(duration, new AndroidBleManager.ScanListener() {
                     @Override
                     public void onDeviceDiscovered(String address, String name) {
                         callback.onDeviceFound(address, name);

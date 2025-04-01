@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.steamcontrollertoxboxapp.R;
+import com.example.steamcontrollertoxboxapp.ble.AndroidBleManager;
 import com.example.steamcontrollertoxboxapp.service.EmulationService;
 
 import java.util.ArrayList;
@@ -102,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
             discoveredDevices.clear();
             adapter.notifyDataSetChanged();
             
-            emulationService.startScan(5000, new EmulationService.ScanCallback() {
+            emulationService.startScan(5000, new AndroidBleManager.ScanListener() {
                 @Override
                 public void onDeviceFound(String deviceAddress) {
                     runOnUiThread(() -> {
@@ -120,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onError(int errorCode) {
+                public void onScanFailed(int errorCode) {
                     runOnUiThread(() -> {
                         String errorMsg = "Scan failed";
                         if (errorCode == AndroidBleManager.ERROR_PERMISSION_DENIED) {

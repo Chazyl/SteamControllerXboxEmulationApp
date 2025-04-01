@@ -40,9 +40,10 @@ public class AndroidBleManager implements BleDeviceManager {
     public static final int ERROR_SCAN_FAILED = 2;
     public static final int ERROR_CONNECTION_FAILED = 3;
     public static final int ERROR_DISCONNECTED = 4;
-    // Error codes
-    public static final int ERROR_PERMISSION_DENIED = 1;
-    public static final int ERROR_BLUETOOTH_DISABLED = 2;
+    public static final int ERROR_PERMISSION_DENIED = 5;
+    public static final int ERROR_BLUETOOTH_DISABLED = 6;
+    public static final int ERROR_LOCATION_DISABLED = 7;
+    public static final int ERROR_UNKNOWN = 8;
     // Interface implementation
     @Override
     public void onDeviceConnected(String deviceAddress) {
@@ -300,6 +301,28 @@ public class AndroidBleManager implements BleDeviceManager {
             throw new IOException("Failed to initiate characteristic write.");
         }
         Log.d(TAG, "Initiated write to characteristic: " + characteristicUuid);
+    }
+
+    @Override
+    public void close() {
+        try {
+            destroy();
+        } catch (Exception e) {
+            Log.e(TAG, "Error during close", e);
+        }
+    }
+
+    @Override
+    public void disconnect() {
+        if (bluetoothGatt != null && isConnected) {
+            try {
+                if (hasConnectPermission()) {
+                    bluetoothGatt.disconnect();
+                }
+            } catch (SecurityException e) {
+                Log.e(TAG, "SecurityException when disconnecting", e);
+            }
+        }
     }
 
     @Override
