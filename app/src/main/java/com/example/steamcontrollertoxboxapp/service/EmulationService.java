@@ -173,28 +173,66 @@ public class EmulationService extends Service implements AndroidBleManager.Conne
          return connectedDeviceAddress;
      }
 
-    public List<String> startScan(long duration) {
-         if (bleManager == null || currentState.get() == ServiceState.NO_ROOT || currentState.get() == ServiceState.FAILED) {
-             Log.w(TAG, "Cannot scan, BLE manager not ready or in error state.");
-             return null; // Indicate error
-         }
-         updateState(ServiceState.SCANNING);
-         updateNotification("Scanning for devices...");
-         try {
-             // Run scan on service thread, return results (might be empty initially)
-             // A callback mechanism to update UI progressively would be better.
-             return bleManager.scanForDevices(duration);
-         } catch (SecurityException e) {
-              Log.e(TAG, "Scan failed: Missing permissions.", e);
-              updateState(ServiceState.FAILED);
-              updateNotification("Scan failed (Permissions)");
-              return null;
-         } catch (Exception e) {
-              Log.e(TAG, "Scan failed", e);
-              updateState(ServiceState.FAILED);
-              updateNotification("Scan failed");
-              return null;
-         }
+    public interface ScanCallback {
+        void onDeviceFound(String deviceAddress, String deviceName);
+        void onScanComplete();
+        void onScanFailed(int errorCode);
+    }
+
+    public void startScan(long duration, ScanCallback callback) {
+        if (bleManager == null || currentState.get() == ServiceState.NO_ROOT || currentState.get() == ServiceState.FAILED) {
+            Log.w(TAG, "Cannot scan, BLE manager not ready or in error state.");
+            callback.onScanFailed(AndroidBleManager.ERROR_INVALID_STATE);
+            return;
+        }
+        
+        updateState(ServiceState.SCANNING);
+        updateNotification("Scanning for devices...");
+        
+        serviceHandler.post(() -> {
+            try {
+                bleManager.scanForDevices(duration, new AndroidBleManager.ScanCallback() {
+                    @Override
+                    public void onDeviceDiscovered(String address, String name) {
+                        callback.onDeviceFound(address, name);
+                    }
+
+                    @Override
+                    public void onScanFinished() {
+                        updateState(ServiceState.IDLE);
+                        callback.onScanComplete();
+                    }
+
+                    @Override
+                    public void onScanFailed(int errorCode) {
+                        updateState(ServiceState.FAILED);
+                        String errorMsg = "Scan failed: " + getScanErrorString(errorCode);
+                        updateNotification(errorMsg);
+                        callback.onScanFailed(errorCode);
+                    }
+                });
+            } catch (SecurityException e) {
+                Log.e(TAG, "Scan failed: Missing permissions.", e);
+                updateState(ServiceState.FAILED);
+                updateNotification("Scan failed (Permissions)");
+                callback.onScanFailed(AndroidBleManager.ERROR_PERMISSION_DENIED);
+            } catch (Exception e) {
+                Log.e(TAG, "Scan failed", e);
+                updateState(ServiceState.FAILED);
+                updateNotification("Scan failed");
+                callback.onScanFailed(AndroidBleManager.ERROR_UNKNOWN);
+            }
+        });
+    }
+
+    private String getScanErrorString(int errorCode) {
+        switch (errorCode) {
+            case AndroidBleManager.ERROR_PERMISSION_DENIED: return "Permission denied";
+            case AndroidBleManager.ERROR_BLUETOOTH_DISABLED: return "Bluetooth disabled";
+            case AndroidBleManager.ERROR_LOCATION_DISABLED: return "Location disabled";
+            case AndroidBleManager.ERROR_INVALID_STATE: return "Invalid state";
+            default: return "Unknown error";
+        }
     }
 
     public void connectToDevice(String address) {

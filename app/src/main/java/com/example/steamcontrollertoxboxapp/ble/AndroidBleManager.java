@@ -34,6 +34,9 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 public class AndroidBleManager implements BleDeviceManager {
+    // Error codes
+    public static final int ERROR_PERMISSION_DENIED = 1;
+    public static final int ERROR_BLUETOOTH_DISABLED = 2;
     // Interface implementation
     @Override
     public void onDeviceConnected(String deviceAddress) {
@@ -114,14 +117,22 @@ public class AndroidBleManager implements BleDeviceManager {
         scanForDevices(10000); // Default 10 second scan
     }
 
-    public List<String> scanForDevices(long scanDurationMillis) throws SecurityException {
+    public interface ScanCallback {
+        void onDeviceDiscovered(String address, String name);
+        void onScanFinished();
+        void onScanFailed(int errorCode);
+    }
+
+    public void scanForDevices(long scanDurationMillis, ScanCallback callback) throws SecurityException {
         if (!hasScanPermission()) {
             Log.e(TAG, "Missing Bluetooth Scan Permission!");
+            callback.onScanFailed(ERROR_PERMISSION_DENIED);
             throw new SecurityException("Missing Bluetooth Scan Permission");
         }
         if (bleScanner == null) {
             Log.e(TAG, "BLE Scanner not initialized (BT disabled?).");
-            return new ArrayList<>(); // Return empty list
+            callback.onScanFailed(ERROR_BLUETOOTH_DISABLED);
+            return;
         }
 
         discoveredDevices.clear(); // Clear previous results
@@ -130,12 +141,12 @@ public class AndroidBleManager implements BleDeviceManager {
             public void onScanResult(int callbackType, ScanResult result) {
                 super.onScanResult(callbackType, result);
                 BluetoothDevice device = result.getDevice();
-                // Use address as the unique identifier
                 String deviceAddress = device.getAddress();
+                String deviceName = device.getName() != null ? device.getName() : "Unknown";
                 if (!discoveredDevices.containsKey(deviceAddress)) {
-                    Log.d(TAG, "Device found: " + (device.getName() != null ? device.getName() : "Unknown") + " [" + deviceAddress + "]");
+                    Log.d(TAG, "Device found: " + deviceName + " [" + deviceAddress + "]");
                     discoveredDevices.put(deviceAddress, device);
-                    // TODO: Optionally notify UI about newly found device here (e.g., via callback)
+                    callback.onDeviceDiscovered(deviceAddress, deviceName);
                 }
             }
 
@@ -145,9 +156,11 @@ public class AndroidBleManager implements BleDeviceManager {
                 for (ScanResult result : results) {
                     BluetoothDevice device = result.getDevice();
                     String deviceAddress = device.getAddress();
+                    String deviceName = device.getName() != null ? device.getName() : "Unknown";
                     if (!discoveredDevices.containsKey(deviceAddress)) {
-                        Log.d(TAG, "Batch Device found: " + (device.getName() != null ? device.getName() : "Unknown") + " [" + deviceAddress + "]");
+                        Log.d(TAG, "Batch Device found: " + deviceName + " [" + deviceAddress + "]");
                         discoveredDevices.put(deviceAddress, device);
+                        callback.onDeviceDiscovered(deviceAddress, deviceName);
                     }
                 }
             }
@@ -157,30 +170,23 @@ public class AndroidBleManager implements BleDeviceManager {
                 super.onScanFailed(errorCode);
                 Log.e(TAG, "BLE Scan Failed with error code: " + errorCode);
                 isScanning = false;
-                // TODO: Notify UI about scan failure
+                callback.onScanFailed(errorCode);
             }
         };
 
-        // Scan Filters - Filter for the Steam Controller Service UUID
         List<ScanFilter> filters = new ArrayList<>();
-        // ScanFilter filter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(SERVICE_UUID)).build();
-        // filters.add(filter); // Uncomment if UUID is confirmed and filtering is desired
-
         ScanSettings settings = new ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY) // Use low latency for responsiveness
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build();
 
         Log.i(TAG, "Starting BLE scan...");
         isScanning = true;
         bleScanner.startScan(filters, settings, leScanCallback);
 
-        // Stop scanning after the specified duration
-        handler.postDelayed(this::stopScan, scanDurationMillis);
-
-        // Return the keys (addresses) of discovered devices *so far*.
-        // The list might populate further while scanning. A callback mechanism
-        // to the UI is better for real-time updates.
-        return new ArrayList<>(discoveredDevices.keySet());
+        handler.postDelayed(() -> {
+            stopScan();
+            callback.onScanFinished();
+        }, scanDurationMillis);
     }
 
     public void stopScan() {

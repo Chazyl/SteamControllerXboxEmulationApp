@@ -100,11 +100,40 @@ public class MainActivity extends AppCompatActivity {
     private void startScan() {
         if (bound && emulationService != null) {
             discoveredDevices.clear();
-            List<String> devices = emulationService.startScan(5000);
-            if (devices != null) {
-                discoveredDevices.addAll(devices);
-                adapter.notifyDataSetChanged();
-            }
+            adapter.notifyDataSetChanged();
+            
+            emulationService.startScan(5000, new EmulationService.ScanCallback() {
+                @Override
+                public void onDeviceFound(String deviceAddress) {
+                    runOnUiThread(() -> {
+                        discoveredDevices.add(deviceAddress);
+                        adapter.notifyItemInserted(discoveredDevices.size() - 1);
+                    });
+                }
+
+                @Override
+                public void onScanComplete() {
+                    runOnUiThread(() -> 
+                        Toast.makeText(MainActivity.this, 
+                            "Scan completed", 
+                            Toast.LENGTH_SHORT).show());
+                }
+
+                @Override
+                public void onError(int errorCode) {
+                    runOnUiThread(() -> {
+                        String errorMsg = "Scan failed";
+                        if (errorCode == AndroidBleManager.ERROR_PERMISSION_DENIED) {
+                            errorMsg = "Bluetooth permissions denied";
+                        } else if (errorCode == AndroidBleManager.ERROR_BLUETOOTH_DISABLED) {
+                            errorMsg = "Bluetooth is disabled";
+                        }
+                        Toast.makeText(MainActivity.this, 
+                            errorMsg, 
+                            Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
         }
     }
 
